@@ -1,0 +1,67 @@
+#!/usr/bin/env perl
+# -*- coding: utf-8 -*-
+use strict;
+use warnings;
+use File::Basename 'basename';
+use Config::Tiny;
+use AnyEvent;
+use AnyEvent::HTTP;
+
+my $conf = $ENV{HOME}.'/.'.basename($0);
+my $format = '%sの%sのレベルが%sになった！';
+
+my %result = ();
+my $cv = AnyEvent->condvar;
+
+sub request {
+    my $id = shift;
+
+    my $target = 'http://hiroba.dqx.jp/sc/character/'.$id.'/';
+
+    $cv->begin;
+    http_get $target, timeout => 5, recurse => 0, sub {
+	my ($body, $headers) = @_;
+
+	if ($headers->{Status} == 200) {
+	    my ($name, $job, $level) = $body =~ m,<h2 id="myCharacterName">\[(.*?)\]</h2>.*?<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>,so;
+	    $result{$id} = {
+		name => $name,
+		job => $job,
+		level => $level,
+	    } if $name;
+	}
+	$cv->end;
+    };
+}
+
+sub run {
+    my @ids = @_;
+
+    my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
+    @ids = keys %{$ini} unless @ids;
+
+    request($_) for @ids;
+    $cv->recv;
+
+    my $change;
+    for my $id (@ids) {
+	next unless my $name = $result{$id}{name};
+	my $job   = $result{$id}{job};
+	my $level = $result{$id}{level};
+
+	if (defined $ini->{$id}{$job}) {
+	    if ($ini->{$id}{$job} ne $level) {
+		printf($format."\n", $name, $job, $level);
+		$ini->{$id}{$job} = $level;
+		++$change;
+	    }
+	} else {
+	    $ini->{$id}{name} = $name;
+	    $ini->{$id}{$job} = $level;
+	    ++$change;
+	}
+    }
+    $ini->write($conf) if $change;
+}
+
+run(@ARGV);
