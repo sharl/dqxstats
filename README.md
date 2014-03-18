@@ -2,7 +2,7 @@
 
 dqxstats - display character's level if change
 
-# SYNOPSYS
+# SYNOPSIS
 
 ## entry
 
