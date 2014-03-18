@@ -25,13 +25,13 @@ sub request {
 
 	my ($pat) = (
 	    '<h2 id="myCharacterName">\[(.*?)\]</h2>.*?'.
-	    '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>.*?'.
-	    '<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (.*?)</span></td>.*?'.
-	    '<th><span>評判</span></th>.*?<td>(.*?)</td>.*?'.
-	    '<h2 class="iconTitle">釣りレベル</h2>.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(.*?)</span>.*?</td>'
+	    '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>'.
+	    '(.*?<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?'.
+	    '<th><span>評判</span></th>.*?<td>(.*?)</td>)?'.
+	    '(.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(\d+)</span>)?'
 	    );
 	if ($headers->{Status} == 200) {
-	    my ($name, $job, $level, $skill, $slevel, $srepute, $flevel) = $body =~ m,$pat,so;
+	    my ($name, $job, $level, undef, $skill, $slevel, $srepute, undef, $flevel) = $body =~ m,$pat,so;
 	    $result{$id} = {
 		name => $name,
 		job => $job,
@@ -71,17 +71,17 @@ sub run {
 		$ini->{$id}{$job} = $level;
 		++$change;
 	    }
-	    if ($ini->{$id}{$skill} ne $slevel) {
+	    if (defined $skill && (! defined $ini->{$id}{$skill} || $ini->{$id}{$skill} ne $slevel)) {
 		printf($format."\n", $name, $skill, $slevel);
 		$ini->{$id}{$skill} = $slevel;
 		++$change;
 	    }
-	    if ($ini->{$id}{'評判'} ne $srepute) {
+	    if (defined $srepute && (! defined $ini->{$id}{'評判'} || $ini->{$id}{'評判'} ne $srepute)) {
 		printf($repute."\n", $name, $skill, $srepute);
 		$ini->{$id}{'評判'} = $srepute;
 		++$change;
 	    }
-	    if ($ini->{$id}{'釣り'} ne $flevel) {
+	    if (defined $flevel && (! defined $ini->{$id}{'釣り'} || $ini->{$id}{'釣り'} ne $flevel)) {
 		printf($format."\n", $name, '釣り', $flevel);
 		$ini->{$id}{'釣り'} = $flevel;
 		++$change;
@@ -89,9 +89,9 @@ sub run {
 	} else {
 	    $ini->{$id}{name} = $name;
 	    $ini->{$id}{$job} = $level;
-	    $ini->{$id}{$skill} = $slevel;
-	    $ini->{$id}{'評判'} = $srepute;
-	    $ini->{$id}{'釣り'} = $flevel;
+	    $ini->{$id}{$skill} = $slevel  if $skill;
+	    $ini->{$id}{'評判'} = $srepute if $srepute;
+	    $ini->{$id}{'釣り'} = $flevel  if $flevel;
 	    ++$change;
 	}
     }
