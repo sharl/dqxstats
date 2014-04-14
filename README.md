@@ -29,6 +29,21 @@ if job level has changed, display like following:
 おかんの釣りのレベルが10になった！
 ```
 
+```
+$ dqxstats -p
+```
+
+display list of the current status like following:
+
+```
+おかん
+|戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|
+|士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|
+|80|80|80|80|80|80|80|80|80|80|80|80|80|80|
+```
+
+note: status is the level at detected.
+
 ## file
 
 names and levels are recording to `~/.dqxstats`.

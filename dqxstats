@@ -13,6 +13,24 @@ my $repute = '%sの%sの評判が%sになった！';
 
 my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
 
+if (defined $ARGV[0] && $ARGV[0] eq '-p') {
+    my $infofmt =<<EOD;
+%s
+|戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|
+|士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|
+|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|
+EOD
+
+    foreach my $id (keys %{$ini}) {
+	printf $infofmt, $ini->{$id}{name}, map {
+	    my $level = $ini->{$id}{$_};
+	    $level ? (sprintf '%2d', $level) : '　';
+	} (qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人
+	      バトルマスター パラディン 魔法戦士 レンジャー 賢者 スーパースター まもの使い どうぐ使い));
+    }
+    exit;
+}
+
 my ($pat) = (
     '<h2 id="myCharacterName">\[(.*?)\]</h2>.*?'.
     '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>'.
@@ -23,10 +41,6 @@ my ($pat) = (
 
 my $change;
 my $cv = AnyEvent->condvar;
-
-request($_) for (@ARGV ? @ARGV : keys %{$ini});
-$cv->recv;
-$ini->write($conf) if $change;
 
 sub request {
     my $id = shift;
@@ -77,3 +91,7 @@ sub request {
 	$cv->end;
     };
 }
+
+request($_) for (@ARGV ? @ARGV : keys %{$ini});
+$cv->recv;
+$ini->write($conf) if $change;
