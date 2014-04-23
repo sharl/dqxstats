@@ -47,9 +47,9 @@ EOD
 	my $r = $ini->{$id}{'評判'} || '';
 	Encode::from_to($r, 'UTF-8', 'eucjp');
 
-	my $len = $width - length($n) - 1 - 1 - length($srepute) - 1 - length($r);
+	my $len = $width - length($n) - 1 - 1 - 2 - 1 - length($r);
 
-	my $nameline = sprintf("%s %*s %s %s\n", $n, $len, $s, $srepute, $r);
+	my $nameline = sprintf("%s %*s %2s %s\n", $n, $len, $s, $srepute, $r);
 	Encode::from_to($nameline, 'eucjp', 'UTF-8');
 
 	printf $nameline.$infofmt, map {
