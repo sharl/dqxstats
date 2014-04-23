@@ -16,6 +16,8 @@ note: character's page must be opened for everyone. see also http://dqxstat.info
 
 ## display
 
+### show changes
+
 ```
 $ dqxstats
 ```
@@ -29,6 +31,17 @@ if job level has changed, display like following:
 おかんの釣りのレベルが10になった！
 ```
 
+if skill effect has changed, display like following:
+
+```
+おかんのさいだいＨＰが常時+140になった！
+おかんのちからが常時+50になった！
+おかんのすばやさが常時+220になった！
+```
+
+### show current status
+
+
 ```
 $ dqxstats -p
 ```
@@ -36,7 +49,7 @@ $ dqxstats -p
 display list of the current status like following:
 
 ```
-おかん
+おかん         道具鍛冶職人 40 Ｓ級世界屈指
 |戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|
 |士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|
 |80|80|80|80|80|80|80|80|80|80|80|80|80|80|

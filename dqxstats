@@ -4,29 +4,61 @@ use strict;
 use warnings;
 use File::Basename 'basename';
 use Config::Tiny;
+use Encode;
 use AnyEvent;
 use AnyEvent::HTTP;
 
 my $conf = $ENV{HOME}.'/.'.basename($0);
 my $format = '%sの%sのレベルが%sになった！';
 my $repute = '%sの%sの評判が%sになった！';
+my $effect = '%sの%sが常時+%dになった！';
+my $efup   = '%sの%sが常時+%dから+%dに上がった！';
+my $efdown = '%sの%sが常時+%dから%+dに下がった！';
+my $efvani = '%sの常時%sの効果が消えた！';
+my @job_keys = qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人 バトルマスター パラディン 魔法戦士 レンジャー 賢者 スーパースター まもの使い どうぐ使い);
+my @effect_keys = qw(さいだいＨＰ さいだいＭＰ こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく);
 
 my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
 
 if (defined $ARGV[0] && $ARGV[0] eq '-p') {
     my $infofmt =<<EOD;
-%s
 |戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|
 |士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|
 |%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|
 EOD
+    my $baseline = (split("\n", $infofmt))[0];
+    Encode::from_to($baseline, 'UTF-8', 'eucjp');
+    my $width = length($baseline);
 
     foreach my $id (keys %{$ini}) {
-	printf $infofmt, $ini->{$id}{name}, map {
+	my ($skill, $srepute) = ('', 0);
+	foreach my $_skill (grep /職人/, keys $ini->{$id}) {
+	    if ($ini->{$id}{$_skill} > $srepute) {
+		$srepute = $ini->{$id}{$_skill};
+		$skill = $_skill;
+	    }
+	}
+	$srepute = '' unless $skill;
+
+	my $n = $ini->{$id}{name};
+	Encode::from_to($n, 'UTF-8', 'eucjp');
+	my $s = $skill || '';
+	Encode::from_to($s, 'UTF-8', 'eucjp');
+	my $r = $ini->{$id}{'評判'} || '';
+	Encode::from_to($r, 'UTF-8', 'eucjp');
+
+	my $len = $width - length($n) - 1 - 1 - length($srepute) - 1 - length($r);
+
+	my $nameline = sprintf("%s %*s %s %s\n", $n, $len, $s, $srepute, $r);
+	Encode::from_to($nameline, 'eucjp', 'UTF-8');
+
+	printf $nameline.$infofmt, map {
 	    my $level = $ini->{$id}{$_};
 	    $level ? (sprintf '%2d', $level) : '　';
-	} (qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人
-	      バトルマスター パラディン 魔法戦士 レンジャー 賢者 スーパースター まもの使い どうぐ使い));
+	} @job_keys;
+	foreach my $effect (@effect_keys) {
+	    printf "常時%s+%s\n", $effect, $ini->{$id}{$effect} if $ini->{$id}{$effect};
+	}
     }
     exit;
 }
@@ -36,7 +68,8 @@ my ($pat) = (
     '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>'.
     '(.*?<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?'.
     '<th><span>評判</span></th>.*?<td>(.*?)</td>)?'.
-    '(.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(\d+)</span>)?'
+    '(.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(\d+)</span>)?'.
+    '(.*?<div class="skillEffect">.*)?'
     );
 
 my $change;
@@ -52,10 +85,17 @@ sub request {
 	my ($body, $headers) = @_;
 
 	if ($headers->{Status} == 200) {
-	    my ($name, $job, $level, undef, $skill, $slevel, $srepute, undef, $flevel) = $body =~ /$pat/so;
+	    my ($name, $job, $level, undef, $skill, $slevel, $srepute, undef, $flevel, $effects) = $body =~ /$pat/so;
 	    unless ($name) {
 		$cv->end;
 		return;
+	    }
+	    my %effects;
+	    if ($effects) {
+		foreach ($effects =~ /<a href="javascript:;" class="tooltip">常時(.*?\+\d+?)<span class="tip">/go) {
+		    my ($k, $v) = split('\+');
+		    $effects{$k} += $v;
+		}
 	    }
 
 	    if (defined $ini->{$id}{name}) {
@@ -79,12 +119,34 @@ sub request {
 		    $ini->{$id}{'釣り'} = $flevel;
 		    ++$change;
 		}
+
+		if (grep /$job/, @job_keys) {
+		    foreach my $ekey (@effect_keys) {
+			if (! defined $ini->{$id}{$ekey} && defined $effects{$ekey}) {
+			    printf($effect."\n", $name, $ekey, $effects{$ekey});
+			    $ini->{$id}{$ekey} = $effects{$ekey};
+			    ++$change;
+			} elsif (defined $ini->{$id}{$ekey} && ! defined $effects{$ekey}) {
+			    printf($efvani."\n", $name, $ekey);
+			    delete $ini->{$id}{$ekey};
+			    ++$change;
+			} elsif ($effects{$ekey} && $ini->{$id}{$ekey} ne $effects{$ekey}) {
+			    printf(($effects{$ekey} > $ini->{$id}{$ekey} ? $efup : $efdown)."\n",
+				   $name, $ekey, $ini->{$id}{$ekey}, $effects{$ekey});
+			    $ini->{$id}{$ekey} = $effects{$ekey};
+			    ++$change;
+			}
+		    }
+		}
 	    } else {
 		$ini->{$id}{name} = $name;
 		$ini->{$id}{$job} = $level;
 		$ini->{$id}{$skill} = $slevel  if $skill;
 		$ini->{$id}{'評判'} = $srepute if $srepute;
 		$ini->{$id}{'釣り'} = $flevel  if $flevel;
+		foreach my $ekey (keys %effects) {
+		    $ini->{$id}{$ekey} = $effects{$ekey} if $effects{$ekey};
+		}
 		++$change;
 	    }
 	}
