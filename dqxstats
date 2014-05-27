@@ -32,7 +32,7 @@ EOD
 
     foreach my $id (keys %{$ini}) {
 	my ($skill, $srepute) = ('', 0);
-	foreach my $_skill (grep /職人/, keys $ini->{$id}) {
+	foreach my $_skill (grep /職人/o, keys %{$ini->{$id}}) {
 	    if ($ini->{$id}{$_skill} > $srepute) {
 		$srepute = $ini->{$id}{$_skill};
 		$skill = $_skill;
@@ -105,7 +105,17 @@ sub request {
 		    ++$change;
 		}
 		if (defined $skill && (! defined $ini->{$id}{$skill} || $ini->{$id}{$skill} ne $slevel)) {
-		    printf($format."\n", $name, $skill, $slevel);
+		    my @others = grep /職人/o && !/$skill/, keys $ini->{$id};
+		    if (@others) {
+			foreach my $other (@others) {
+			    print "$nameが$otherをやめて$skillになった！\n";
+			    delete $ini->{$id}{$other};
+			}
+		    } elsif (! defined $ini->{$id}{$skill}) {
+			print "$nameが$skillになった！\n";
+		    } else {
+			printf($format."\n", $name, $skill, $slevel);
+		    }
 		    $ini->{$id}{$skill} = $slevel;
 		    ++$change;
 		}
