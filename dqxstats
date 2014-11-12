@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use File::Basename 'basename';
 use Config::Tiny;
+use Getopt::Long;
 use Encode;
 use AnyEvent;
 use AnyEvent::HTTP;
@@ -19,17 +20,23 @@ my @job_keys = qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人 バト�
 my @effect_keys = qw(さいだいＨＰ さいだいＭＰ こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく);
 
 my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
-my $optkey = 'hjp';
 
 sub usage {
-    printf STDERR "Usage: %s [-$optkey] [id]\n", basename($0);
-    exit 1;
+    my $code = shift || -1;
+
+    printf STDERR "Usage: %s [-h] [-p [name]] [-j [name]] [id]\n", basename($0);
+    exit $code;
 }
 
-if (defined $ARGV[0] && $ARGV[0] =~ /^-[$optkey]/o) {
-    my %opt; $opt{substr($ARGV[0], 1)} = 1;
-    usage() if $opt{h};
+GetOptions('help' => \my $help,
+	   'print:s@' => \my $prints,
+	   'jobs:s@' => \my $jobs) or usage(2);
+usage(1) if $help;
 
+$prints = join('|', map {$_ || '.*'} @{$prints});
+$jobs   = join('|', map {$_ || '.*'} @{$jobs});
+
+if ($prints or $jobs) {
     my $infofmt =<<EOD;
 |戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|
 |士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|
@@ -61,17 +68,21 @@ EOD
 	my $nameline = sprintf("%s %*s %2s %s\n", $n, $len, $s, $srepute, $r);
 	Encode::from_to($nameline, 'eucjp', 'UTF-8');
 
-	if ($opt{p}) {
-	    printf $nameline.$infofmt, map {
-		my $level = $ini->{$id}{$_};
-		$level ? (sprintf '%2d', $level) : '　';
-	    } @job_keys;
-	} elsif ($opt{j}) {
-	    print $nameline;
+	if ($prints) {
+	    if ($ini->{$id}{name} =~ /\A$prints\z/o) {
+		printf $nameline.$infofmt, map {
+		    my $level = $ini->{$id}{$_};
+		    $level ? (sprintf '%2d', $level) : '　';
+		} @job_keys;
+	    }
+	} elsif ($jobs) {
+	    print $nameline if $ini->{$id}{name} =~ /\A$jobs\z/o;
 	    next;
 	}
-	foreach my $effect (@effect_keys) {
-	    printf "常時%s+%s\n", $effect, $ini->{$id}{$effect} if $ini->{$id}{$effect};
+	if ($prints and $ini->{$id}{name} =~ /\A$prints\z/o) {
+	    foreach my $effect (@effect_keys) {
+		printf "常時%s+%s\n", $effect, $ini->{$id}{$effect} if $ini->{$id}{$effect};
+	    }
 	}
     }
     exit;
