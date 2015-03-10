@@ -18,6 +18,7 @@ my $efdown = '%sの%sが全職業で+%dから%+dに下がった！';
 my $efvani = '%sの全職業で%sの効果が消えた！';
 my @job_keys = qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人 バトルマスター パラディン 魔法戦士 レンジャー 賢者 スーパースター まもの使い どうぐ使い);
 my @effect_keys = qw(さいだいＨＰ さいだいＭＰ こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく);
+my @param_keys = qw(さいだいHP さいだいMP こうげき力 こうげき力・右 こうげき力・左 しゅび力 こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく おしゃれさ おもさ);
 
 my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
 
@@ -131,10 +132,10 @@ sub request {
 		    ++$change;
 		}
 		my %params = $params =~ m,<th><span>(.*?)</span></th>.*?<td>(\d+)</td>,sgo;
-		foreach my $param (keys %params) {
+		foreach my $param (@param_keys) {
 		    my $p = "p$param";
 		    $ini->{$id}{$p} ||= 0;
-		    if ($params{$param} > $ini->{$id}{$p}) {
+		    if (defined $params{$param} && $params{$param} > $ini->{$id}{$p}) {
 			print "$nameの$paramが$params{$param}になった！\n";
 			$ini->{$id}{$p} = $params{$param};
 			++$change;
