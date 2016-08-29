@@ -63,10 +63,15 @@ EOD
 	Encode::from_to($s, 'UTF-8', 'eucjp');
 	my $r = $ini->{$id}{'評判'} || '';
 	Encode::from_to($r, 'UTF-8', 'eucjp');
+	my $f = $ini->{$id}{'釣り'} || '';
+	if ($f) {
+	    $f = sprintf(' 釣 %2s', $f);
+	    Encode::from_to($f, 'UTF-8', 'eucjp');
+	}
 
-	my $len = $width - length($n) - 1 - 1 - 2 - 1 - length($r);
+	my $len = $width - length($n) - 1 - 1 - 2 - 1 - length($r) - length($f);
 
-	my $nameline = sprintf("%s %*s %2s %s\n", $n, $len, $s, $srepute, $r);
+	my $nameline = sprintf("%s %*s %2s %s%s\n", $n, $len, $s, $srepute, $r, $f);
 	Encode::from_to($nameline, 'eucjp', 'UTF-8');
 
 	if ($prints) {
