@@ -49,7 +49,7 @@ EOD
 
     foreach my $id (keys %{$ini}) {
 	my ($skill, $srepute) = ('', 0);
-	foreach my $_skill (grep /職人/o, keys %{$ini->{$id}}) {
+	foreach my $_skill (grep /職人$/o, keys %{$ini->{$id}}) {
 	    if ($ini->{$id}{$_skill} > $srepute) {
 		$srepute = $ini->{$id}{$_skill};
 		$skill = $_skill;
