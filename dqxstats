@@ -147,10 +147,13 @@ sub request {
 		    }
 		}
 		if (defined $skill && (! defined $ini->{$id}{$skill} || $ini->{$id}{$skill} ne $slevel)) {
-		    my @others = grep /職人/o && !/$skill/, keys %{$ini->{$id}};
+		    my @others = grep /職人$/o && !/$skill/, keys %{$ini->{$id}};
 		    if (@others) {
 			foreach my $other (@others) {
 			    print "$nameが$otherをやめて$skillになった！\n";
+			    my $llevel = $ini->{$id}{$other};
+			    $ini->{$id}{"${other}h"} = $llevel;
+			    delete $ini->{$id}{"${skill}h"};
 			    delete $ini->{$id}{$other};
 			}
 		    } elsif (! defined $ini->{$id}{$skill}) {
