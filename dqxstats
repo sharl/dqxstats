@@ -96,9 +96,10 @@ EOD
 
 my ($pat) = (
     '<h2 id="myCharacterName">\[(.*?)\]</h2>.*?'.
-    '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>'.
-    '.*?<div class="parameter">(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)<div class="skill">.*?'.
-    '(.*?<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?'.
+    '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>.*?'.
+    '<div class="parameter">(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)'.
+    '<div class="skill">(.*?<th><span>.*?</span></th>.*?<td>.*?</td>.*?)</table>.*?'.
+    '(<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?'.
     '<th><span>評判</span></th>.*?<td>(.*?)</td>)?'.
     '(.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(\d+)</span>)?'.
     '(.*?<div class="skillEffect">.*)?'
@@ -117,7 +118,8 @@ sub request {
 	my ($body, $headers) = @_;
 
 	if ($headers->{Status} == 200) {
-	    my ($name, $job, $level, $params, undef, $skill, $slevel, $srepute,	undef, $flevel, $effects) = $body =~ /$pat/so;
+	    my ($name, $job, $level, $params, $sps, undef, $skill, $slevel, $srepute, undef, $flevel, $effects) = $body =~ /$pat/so;
+
 	    unless ($name) {
 		$cv->end;
 		return;
@@ -146,6 +148,16 @@ sub request {
 			++$change;
 		    }
 		}
+		my %sps = $sps =~ m,<th><span>(.*?)</span></th>.*?<td><span >(\d+).*?P</span></td>,sgo;
+		foreach my $sp (keys %sps) {
+		    $ini->{$id}{$sp} ||= 0;
+		    if ($sps{$sp} > $ini->{$id}{$sp}) {
+			print "$nameの$spスキルポイントが$sps{$sp}になった！\n";
+			$ini->{$id}{$sp} = $sps{$sp};
+			++$change;
+		    }
+		}
+
 		if (defined $skill && (! defined $ini->{$id}{$skill} || $ini->{$id}{$skill} ne $slevel)) {
 		    my @others = grep /職人$/o && !/$skill/, keys %{$ini->{$id}};
 		    if (@others) {
