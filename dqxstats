@@ -97,10 +97,9 @@ EOD
 my ($pat) = (
     '<h2 id="myCharacterName">\[(.*?)\]</h2>.*?'.
     '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>.*?'.
-    '<div class="parameter">(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)'.
-    '<div class="skill">(.*?<th><span>.*?</span></th>.*?<td>.*?</td>.*?)</table>.*?'.
-    '(<h2 class="iconTitle">職人レベル</h2>.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?'.
-    '<th><span>評判</span></th>.*?<td>(.*?)</td>)?'.
+    '<div class="parameter">(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)</table>.*?'.
+    '<div class="skill">(.*?<th><span>.*?</span></th>.*?<td>.*?</td>.*?)</table>'.
+    '(.*?<div class="craftsman">.*?<th><span>(.*?)</span></th>.*?<td><span>Lv (\d+)</span></td>.*?<th><span>評判</span></th>.*?<td>(.*?)</td>)?'.
     '(.*?<th><span>釣りレベル</span></th>.*?<span>Lv&nbsp;(\d+)</span>)?'.
     '(.*?<div class="skillEffect">.*)?'
     );
