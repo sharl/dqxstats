@@ -10,6 +10,7 @@ use AnyEvent;
 use AnyEvent::HTTP;
 
 my $conf = $ENV{HOME}.'/.'.basename($0);
+my $fnoun  = '%sの称号が%sになった！';
 my $format = '%sの%sのレベルが%sになった！';
 my $repute = '%sの%sの評判が%sになった！';
 my $effect = '%sの%sが全職業で+%dになった！';
@@ -19,25 +20,31 @@ my $efvani = '%sの全職業で%sの効果が消えた！';
 my @job_keys = qw(戦士 僧侶 魔法使い 武闘家 盗賊 旅芸人 バトルマスター パラディン 魔法戦士 レンジャー 賢者 スーパースター まもの使い どうぐ使い 踊り子 占い師 天地雷鳴士);
 my @effect_keys = qw(さいだいＨＰ さいだいＭＰ こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく);
 my @param_keys = qw(さいだいHP さいだいMP こうげき力 こうげき力・右 こうげき力・左 しゅび力 こうげき魔力 かいふく魔力 ちから みのまもり すばやさ きようさ みりょく おしゃれさ おもさ);
+my @skill_keys = qw(
+	片手剣 両手剣 短剣 スティック 両手杖 ヤリ オノ 棍 ツメ ムチ 扇 ハンマー ブーメラン 弓 格闘 盾
+	ゆうかん しんこう心 まほう きあい おたから きょくげい とうこん フォース サバイバル はくあい さとり オーラ まものマスター アイテムマスター うた おどり うらない しょうかん
+);
 
 my $ini = Config::Tiny->read($conf) || Config::Tiny->new;
 
 sub usage {
     my $code = shift || -1;
 
-    printf STDERR "Usage: %s [-h] [-p [name]] [-j [name]] [id]\n", basename($0);
+    printf STDERR "Usage: %s [-h] [-p [name]] [-j [name]] [-s [name]] [id]\n", basename($0);
     exit $code;
 }
 
 GetOptions('help' => \my $help,
 	   'print:s@' => \my $prints,
-	   'jobs:s@' => \my $jobs) or usage(2);
+	   'jobs:s@' => \my $jobs,
+	   'skills:s@' => \my $skills) or usage(2);
 usage(1) if $help;
 
 $prints = join('|', map {$_ || '.*'} @{$prints});
 $jobs   = join('|', map {$_ || '.*'} @{$jobs});
+$skills = join('|', map {$_ || '.*'} @{$skills});
 
-if ($prints or $jobs) {
+if ($prints or $jobs or $skills) {
     my $infofmt =<<EOD;
 |戦|僧|魔|武|盗|旅|バ|パ|魔|レ|賢|ス|ま|ど|踊|占|天|
 |士|侶|使|闘|賊|芸|ト|ラ|戦|ン|者|パ|も|う|り|師|地|
@@ -59,6 +66,8 @@ EOD
 
 	my $n = $ini->{$id}{name};
 	Encode::from_to($n, 'UTF-8', 'eucjp');
+	my $t = $ini->{$id}{noun} || '';
+	Encode::from_to($t, 'UTF-8', 'eucjp');
 	my $s = $skill || '';
 	Encode::from_to($s, 'UTF-8', 'eucjp');
 	my $r = $ini->{$id}{'評判'} || '';
@@ -71,7 +80,7 @@ EOD
 
 	my $len = $width - length($n) - 1 - 1 - 2 - 1 - length($r) - length($f);
 
-	my $nameline = sprintf("%s %*s %2s %s%s\n", $n, $len, $s, $srepute, $r, $f);
+	my $nameline = sprintf("%s %*s %2s %s%s %s\n", $n, $len, $s, $srepute, $r, $f, $t);
 	Encode::from_to($nameline, 'eucjp', 'UTF-8');
 
 	if ($prints) {
@@ -84,6 +93,28 @@ EOD
 	} elsif ($jobs) {
 	    print $nameline if $ini->{$id}{name} =~ /\A$jobs\z/o;
 	    next;
+	} elsif ($skills) {
+	    my $skillfmt =<<EOD;
+|片剣|両剣|短剣|ステ|両杖|ヤリ|オノ| 棍 |
+|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|
+|ツメ|ムチ| 扇 |ハン|ブメ| 弓 |格闘| 盾 |
+|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|
+|ゆう|しん|まほ|きあ|おた|きょ|とう|フォ|サバ|
+|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|
+|はく|さと|オラ|まも|アイ|うた|おど|うら|しょ|
+|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|%4s|
+EOD
+	    if ($ini->{$id}{name} =~ /\A$skills\z/o) {
+		my @l = ();
+		my $total = 0;
+		foreach my $_s (@skill_keys) {
+		    my $val = $ini->{$id}{$_s} || 0;
+		    $total += $val;
+		}
+		print "$ini->{$id}{name} $total\n";
+		printf $skillfmt, map {$ini->{$id}{$_} || 0} @skill_keys;
+	    }
+	    next;
 	}
 	if ($prints and $ini->{$id}{name} =~ /\A$prints\z/o) {
 	    foreach my $effect (@effect_keys) {
@@ -95,6 +126,7 @@ EOD
 }
 
 my ($pat) = (
+    '<p id="myCharacterTitle">(.*?)</p>.*?'.
     '<h2 id="myCharacterName">\[(.*?)\]</h2>.*?'.
     '<div id="myCharacterStatusList">.*?<dl>.*?<dt>職　業</dt>.*?<dd>：&nbsp;(.*?)</dd>.*?<dt>レベル</dt>.*?<dd>：&nbsp;(\d+)</dd>.*?'.
     '<div class="parameter">(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)</table>.*?'.
@@ -110,14 +142,14 @@ my $cv = AnyEvent->condvar;
 sub request {
     my $id = shift;
 
-    my $target = 'http://hiroba.dqx.jp/sc/character/'.$id.'/status/';
+    my $target = 'https://hiroba.dqx.jp/sc/character/'.$id.'/status/';
 
     $cv->begin;
     http_get $target, timeout => 5, recurse => 0, sub {
 	my ($body, $headers) = @_;
 
 	if ($headers->{Status} == 200) {
-	    my ($name, $job, $level, $params, $sps, undef, $skill, $slevel, $srepute, undef, $flevel, $effects) = $body =~ /$pat/so;
+	    my ($noun, $name, $job, $level, $params, $sps, undef, $skill, $slevel, $srepute, undef, $flevel, $effects) = $body =~ /$pat/so;
 
 	    unless ($name) {
 		$cv->end;
@@ -132,6 +164,12 @@ sub request {
 	    }
 
 	    if (defined $ini->{$id}{name}) {
+		if (! defined $ini->{$id}{noun} || $ini->{$id}{noun} ne $noun) {
+		    printf($fnoun."\n", $name, $noun);
+		    $ini->{$id}{noun} = $noun;
+		    ++$change;
+		}
+
 		if (! defined $ini->{$id}{$job} || $ini->{$id}{$job} ne $level) {
 		    printf($format."\n", $name, $job, $level);
 		    $ini->{$id}{$job} = $level;
@@ -206,6 +244,7 @@ sub request {
 		}
 	    } else {
 		$ini->{$id}{name} = $name;
+		$ini->{$id}{noun} = $noun;
 		$ini->{$id}{$job} = $level;
 		$ini->{$id}{$skill} = $slevel  if $skill;
 		$ini->{$id}{'評判'} = $srepute if $srepute;
