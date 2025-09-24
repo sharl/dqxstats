@@ -13,6 +13,7 @@ my $conf = $ENV{HOME}.'/.'.basename($0);
 my $fnoun  = '%sの称号が%sになった！';
 my $format = '%sの%sのレベルが%sになった！';
 my $repute = '%sの%sの評判が%sになった！';
+my $regist = '%sの%sが最大%s%%になった！';
 my $effect = '%sの%sが全職業で+%dになった！';
 my $efup   = '%sの%sが全職業で+%dから+%dに上がった！';
 my $efdown = '%sの%sが全職業で+%dから%+dに下がった！';
@@ -141,6 +142,7 @@ my ($pat) = (
     '.*?<h2 class="iconTitle">職業&nbsp;/&nbsp;レベル</h2>.*?<td class="text-center" style="border-bottom: none;">\s+(.*?)&nbsp;/&nbsp;レベル&nbsp;(\d+).*?</td>'.
     '.*?<h2 class="iconTitle">スキルポイント</h2>(.*?<th><span>.*?</span></th>.*?<td>.*?</td>.*?)</table>'.
     '.*?<h2 class="iconTitle">パラメータ</h2>(.*?<th><span>.*?</span></th>.*?<td>\d+</td>.*?)</table>'.
+    '.*?<div class="resist">(.*?)<div class="specialSkill">'.
     '(.*?<div class="skillEffect">.*)?'
     );
 
@@ -157,12 +159,13 @@ sub request {
 	my ($body, $headers) = @_;
 
 	if ($headers->{Status} == 200) {
-	    my ($noun, $name, undef, $skill, $slevel, $srepute, undef, $flevel, $job, $level, $sps, $params, $effects) = $body =~ /$pat/so;
+	    my ($noun, $name, undef, $skill, $slevel, $srepute, undef, $flevel, $job, $level, $sps, $params, $regists, $effects) = $body =~ /$pat/so;
 
 	    unless ($name) {
 		$cv->end;
 		return;
 	    }
+	    my %regists = $regists =~ m,<span>(.*?)</span><span.*?>.*?(\d+).*?</span>,go;
 	    my %effects;
 	    if ($effects) {
 		foreach ($effects =~ /<a href="javascript:;" class="tooltip">全職業で(.*?\+\d+?)<span class="tip">/go) {
@@ -232,6 +235,13 @@ sub request {
 		    ++$change;
 		}
 
+		foreach my $rkey (keys %regists) {
+		    if ((! defined $ini->{$id}{$rkey}) || (defined $ini->{$id}{$rkey} && $regists{$rkey} > $ini->{$id}{$rkey})) {
+			printf($regist."\n", $name, $rkey, $regists{$rkey});
+			$ini->{$id}{$rkey} = $regists{$rkey};
+			++$change;
+		    }
+		}
 		if (grep /$job/, @job_keys) {
 		    foreach my $ekey (@effect_keys) {
 			if (! defined $ini->{$id}{$ekey} && defined $effects{$ekey}) {
@@ -257,6 +267,9 @@ sub request {
 		$ini->{$id}{$skill} = $slevel  if $skill;
 		$ini->{$id}{'評判'} = $srepute if $srepute;
 		$ini->{$id}{'釣り'} = $flevel  if $flevel;
+		foreach my $rkey (keys %regists) {
+		    $ini->{$id}{$rkey} = $regists{$rkey} if $regists{$rkey};
+		}
 		foreach my $ekey (keys %effects) {
 		    $ini->{$id}{$ekey} = $effects{$ekey} if $effects{$ekey};
 		}
