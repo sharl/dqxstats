@@ -169,7 +169,7 @@ sub request {
 	    my %effects;
 	    if ($effects) {
 		foreach ($effects =~ /<a href="javascript:;" class="tooltip">全職業で(.*?\+\d+?)<span class="tip">/go) {
-		    my ($k, $v) = split('\+');
+		    my ($k, $v) = split(' \+');
 		    $effects{$k} += $v;
 		}
 	    }
